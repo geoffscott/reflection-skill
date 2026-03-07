@@ -1,0 +1,20 @@
+# Reflection skill: never commit user journal content
+
+# User entries (immutable raw data)
+entries/*.md
+
+# User annotations (interpretive overlays)
+annotations/**/*.md
+
+# Metadata and signals
+metadata.json
+signals/*.jsonl
+
+# Temporary files from development/testing
+*.tmp
+*.bak
+test-vault/
+
+# OS files
+.DS_Store
+Thumbs.db
