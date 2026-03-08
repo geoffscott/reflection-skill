@@ -34,6 +34,8 @@ git checkout dev  # Work from the dev branch, not main
 
 ```bash
 git fetch origin                    # Start with latest
+git checkout develop
+git fetch origin
 git checkout -b draft/[task-name]   # For work in progress
 # or
 git checkout -b feat/[feature-name] # For completed features
@@ -62,7 +64,7 @@ Before writing, study the tradition deeply:
 
 ### 2. Draft the Lens File
 
-Create `lenses/[name].md` following this structure:
+Create `references/lenses/[name].md` following this structure:
 
 #### Framework
 A clear, accessible definition (2-3 paragraphs). No jargon without translation.
@@ -197,7 +199,7 @@ Once approved, we merge to `dev`, then periodically release `dev` → `main`.
 ### Improving Docs
 
 Same process:
-1. Branch off `dev`
+1. Branch off `develop`
 2. Make changes
 3. Test readability
 4. Open PR with clear explanation
@@ -207,7 +209,7 @@ Same process:
 
 If you find an issue:
 1. Open an issue describing the problem
-2. Branch off `dev` as `fix/[issue-name]`
+2. Branch off `develop` as `fix/[issue-name]`
 3. Fix it
 4. Open PR referencing the issue
 5. Merge when tests pass (if applicable)
