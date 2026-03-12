@@ -2,17 +2,26 @@
 
 ## Purpose
 
-Watch Geoff's Discord stream throughout the day and identify content that should become a journal entry. The classifier is the brain; the heartbeat (Phase 2.4) is the clock.
+Watch the user's message stream and identify content that should become a journal entry. The classifier is the brain; the heartbeat (Phase 2.4) is the clock.
 
-## Status: Design In Progress
+## Decisions
 
-### Decided
+### Capture Mode: Silent
+File journal-worthy content without interrupting. No prompts, no confirmations.
 
-- **Source:** Classifier watches Discord messages (not just the daily template)
-- **Scope:** Identifies journal-worthy content from the stream of consciousness
-- **Relationship to 2.4:** Tightly coupled with heartbeat rituals — classifier decides WHAT, heartbeat decides WHEN
+### Source: All Channels (default)
+Not hardcoded to any specific channel. Open source skill — works wherever installed.
 
-### Journal-Worthy Content (capture)
+### Granularity: Clean Voice-to-Text, Preserve Meaning
+Fix transcription artifacts (spelling, punctuation, obvious mishearings). Do not synthesize, summarize, or significantly alter the original content.
+
+### Entry Format: Append to Daily File
+Captured content appends to `~/.openclaw/reflection/entries/YYYY-MM-DD.md` with timestamp headers. One file per calendar day, matching existing entry format.
+
+### Lens-Shaped Capture: Deferred
+Lenses influence interpretation only (Phase 2.2), not capture. Try it simple first.
+
+## Journal-Worthy Content (capture)
 
 - Emotional processing, self-reflection
 - Insights, realizations, pattern recognition
@@ -20,9 +29,9 @@ Watch Geoff's Discord stream throughout the day and identify content that should
 - Gratitude, spiritual/contemplative content
 - Life decisions, values-level thinking
 - Dreams, meditations
-- Creative/generative ideas with personal meaning (e.g., CFO Kit emergence)
+- Creative/generative ideas with personal meaning
 
-### Not Journal-Worthy (skip)
+## Not Journal-Worthy (skip)
 
 - Task management ("remind me to X")
 - Technical debugging
@@ -30,58 +39,36 @@ Watch Geoff's Discord stream throughout the day and identify content that should
 - Routine operational updates
 - Commands to the agent
 
-### Open Design Questions
+## Entry Format
 
-**Q1: Capture mode**
-When journal-worthy content is spotted, what happens?
-- Option A: Silent capture — file it, review later
-- Option B: Flag in moment — "that sounds journal-worthy, want me to capture it?"
-- Option C: Silent capture + daily summary of what was captured
-- **Decision:** TBD
+```markdown
+---
+date: YYYY-MM-DD
+---
 
-**Q2: Source channels**
-Which Discord channels are monitored?
-- Option A: Just #inbox (primary stream)
-- Option B: All channels where Geoff sends messages
-- Option C: Configurable per channel
-- **Decision:** TBD
+## HH:MM — [optional context]
 
-**Q3: Granularity**
-What gets captured?
-- Option A: Exact message text (raw, including voice-to-text artifacts)
-- Option B: Cleaned/synthesized version (fix transcription errors, normalize)
-- Option C: Both — raw preserved, cleaned version for the entry
-- **Decision:** TBD
+[Cleaned content from message stream]
 
-**Q4: Entry format**
-How does captured content become an entry?
-- Option A: Append to existing daily file (entries/YYYY-MM-DD.md) with timestamp
-- Option B: Create separate micro-entries
-- Option C: Buffer throughout day, compile into single entry at end of day
-- **Decision:** TBD
+## HH:MM — [optional context]
 
-**Q5: Declared lenses shaping capture**
-Per the design spec, declared lenses should influence what gets captured (not just how entries are interpreted). How?
-- Option A: Lens-specific triggers (e.g., Buddhism lens → extra sensitivity to craving/aversion patterns)
-- Option B: After capture, tag with which lenses might apply
-- Option C: Both
-- **Decision:** TBD
+[Another captured moment]
+```
 
-## Phase 2.4 Integration Points
+## Integration Points
 
+### Phase 2.4 (Heartbeat Rituals)
 - Daily heartbeat (9 AM): Check if anything was captured. If not, prompt.
 - Weekly heartbeat (Sunday 8 AM): Offer lens reflection on the week's entries.
-- Both heartbeats reference classifier output.
 
-## Phase 2.5 Integration Points
-
-- Learning system tracks which captured content gets kept vs. dismissed
-- Over time, classifier improves based on preferences
-- Proactive lens suggestions based on detected patterns in captured content
+### Phase 2.5 (Learning System)
+- Track which captures get kept vs. dismissed over time
+- Improve classifier accuracy based on user preferences
 
 ## Implementation Notes
 
-- Classifier runs as part of the agent's normal message processing (not a separate service)
-- Per SKILL.md three-mode interaction: capture is silent ("Got it")
+- Classifier runs as part of normal agent message processing (not a separate service)
+- Per SKILL.md: capture is silent ("Got it" equivalent — no response needed)
 - Entries are immutable once written
 - All runtime data in ~/.openclaw/reflection/ (not in repo)
+- Frontmatter created on first capture of the day; subsequent captures append
