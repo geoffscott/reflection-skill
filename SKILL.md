@@ -1,194 +1,126 @@
 ---
 name: reflection
-version: 0.1.0
-description: Capture and reflect on your stream of consciousness with interpretive lenses
-kind: skill
-author: Geoff Scott
-tags: [journaling, reflection, personal-practice, stream-of-consciousness]
+description: Capture and reflect on your stream of consciousness with interpretive lenses. Use when the user shares personal reflections, insights, emotional processing, dreams, meditations, gratitude, or relationship observations. Also triggers on requests to apply a lens or review journal entries.
 ---
 
-# reflection-skill
+# Reflection Skill
 
-Capture your stream of consciousness and reflect on it through multiple interpretive lenses—without ever modifying the raw entries.
+Capture stream of consciousness throughout the day. Reflect on it through interpretive lenses without modifying the raw entries.
 
-## Purpose
+## How It Works
 
-Your thinking unfolds in real time: daily meditation, conversations, random insights, work thoughts. Reflection-skill preserves that stream as immutable history, then lets you layer interpretive lenses on top (Jungian, Stoic, CBT, indigenous-spiritual, contemplative, IFS, freeform) to deepen your understanding of patterns, growth, and self-knowledge over time.
+### Auto-Capture
 
-The stream is the data. The lenses are the interpretation.
+On every inbound user message, evaluate whether it's journal-worthy:
 
-## Architecture
+**Capture if the message contains:**
+- Emotional processing or self-reflection
+- Insights, realizations, or pattern recognition
+- Relationship reflections (people, dynamics, feelings)
+- Gratitude or spiritual/contemplative content
+- Life decisions or values-level thinking
+- Dreams or meditations
+- Creative ideas with personal meaning
 
-### Data Structure
+**Skip if the message is:**
+- Task management ("remind me to," "add to my list")
+- Technical debugging or code discussion
+- Scheduling or logistics
+- Routine operational updates
+- Direct commands to the agent
 
-```
-reflection/
-├── entries/                           # Immutable raw entries
-│   ├── 2025-10-04.md                 # Daily entry
-│   ├── 2025-10-05.md
-│   └── 2026-03-06.md                 # Multiple timestamps per day
-├── annotations/                       # Overlays, organized by lens
-│   ├── jungian/
-│   │   ├── 2025-10-04.md            # Jungian interpretation of that day
-│   │   └── index.md
-│   ├── stoic/
-│   │   ├── 2025-10-04.md
-│   │   └── index.md
-│   ├── cbt/
-│   └── [other lenses...]
-├── signals/                           # Metadata for Kaizen skill
-│   ├── patterns.jsonl               # Pattern signals
-│   └── milestones.jsonl             # Milestone/insight signals
-└── metadata.json                      # Reflection history (import dates, etc.)
-```
+**When capturing:**
+1. Clean voice-to-text artifacts (spelling, punctuation, obvious mishearings)
+2. Do not synthesize, summarize, or significantly alter the content
+3. Append to the daily entry file with a timestamp header
+4. Do not respond about the capture — continue normal processing silently
 
 ### Entry Format
 
-Each file in `reflection/entries/` is immutable:
+Runtime data location: `~/.openclaw/reflection/`
+
+Each day gets one file: `entries/YYYY-MM-DD.md`
 
 ```markdown
 ---
-date: 2026-03-06
-imported_from: discord|markdown|craft_archive
-length_words: 342
+date: 2026-03-12
 ---
 
-## 07:15 — Morning Thought
-Raw meditation capture. No filtering. This is the stream.
+## 09:15
 
-## 09:30 — From Discord
-Another thought that landed throughout the day.
+I'm grateful for the clarity this morning. Mind-body-spirit
+circuit feels complete.
 
-## 14:00 — Reflection
-Something else.
+## 11:42
+
+Something Kerry said about the attestation layer is sticking
+with me. The accountability piece isn't just legal — it's care
+made visible.
+
+## 15:30
+
+Frustrated with Bashan. I'm stuck and it's not in my control.
+Noticing the urge to push harder vs. just being honest about
+the powerlessness.
 ```
 
-**Key principles:**
+**Rules:**
 - One file per calendar day
-- Timestamps within the file preserve intra-day sequence
-- Frontmatter captures metadata (date, source, length)
-- No modifications after creation (immutable raw data)
+- `## HH:MM` timestamp headers in chronological order
+- Frontmatter on first capture of the day; subsequent captures append
+- Entries are immutable once written — never modify past entries
+- Use UTC timestamps
 
-### Lens Format
+### Writing an Entry
 
-Each lens is a directory of dated files that *reference* entries without modifying them:
+To append a captured moment to today's file:
 
-```markdown
-# Jungian Reflection — March 6, 2026
+1. Check if `entries/YYYY-MM-DD.md` exists
+2. If not, create it with frontmatter: `date: YYYY-MM-DD`
+3. Append `## HH:MM` header + cleaned content
+4. Ensure a blank line before and after the new section
 
-## Shadow Work
-The 09:30 entry hints at [reference: entries/2026-03-06.md#09:30] an unexamined part of yourself...
+### Reflection Mode
 
-## Synchronicity
-The morning thought [reference: entries/2026-03-06.md#07:15] connects to the larger pattern of...
+When the user requests a lens reflection (e.g., "give me a Buddhist reading of this week"):
+
+1. Load the requested lens from `references/lenses/[name].md` in the skill repo
+2. Load entries for the requested time period
+3. Apply the lens using the process in `references/LENS_APPLICATION_ENGINE.md`
+4. Write the annotation to `annotations/[lens-name]/YYYY-MM-DD.md`
+5. Present a summary to the user
+6. Offer the full annotation if they want it
+
+### Available Lenses
+
+Lens definitions live in the skill repo under `references/lenses/`:
+
+- **Buddhism** — Craving, impermanence, presence, reactivity patterns
+- **Gnosticism** — Sophia/archontic choices, false authority, awakening moments
+
+See `references/TAXONOMY.md` for the full taxonomy of available lens categories.
+See `references/LENSES.md` for how lenses are structured and how to contribute new ones.
+
+## Data Layout
+
+```
+~/.openclaw/reflection/          # Runtime data (never in git)
+├── entries/                     # Immutable journal entries
+│   └── YYYY-MM-DD.md
+├── annotations/                 # Lens interpretation overlays
+│   └── [lens-name]/
+│       └── YYYY-MM-DD.md
+└── metadata.json                # Usage tracking
+
+skill repo (references/)         # Lens definitions (in git)
+├── lenses/
+│   ├── buddhism.md
+│   └── gnosticism.md
+├── LENSES.md
+├── TAXONOMY.md
+└── LENS_APPLICATION_ENGINE.md
 ```
 
-Lenses are *overlay* structures—they add meaning without touching the original entries.
+## Historical Entries
 
-## First User Story: Import
-
-**As a user, I want to import my existing journal entries so I can reflect on my full history.**
-
-### What Gets Imported
-
-**Phase 1 (this release):**
-- 154 daily entries (YYYY-MM-DD.md format, Oct 2025–early 2026)
-- 25 Craft reflections (longer-form, dates inferred from file metadata)
-- **Total: 179 entries** covering the full reflective archive
-
-**Not imported (Phase 2):**
-- Tasks, Projects, Notes, Unsorted, etc. (require separate design)
-
-### Import Workflow
-
-1. **First run detection** — Skill checks if `reflection/entries/` is empty
-2. **Onboarding prompt** — Offers import; asks for source directory path
-3. **Validation** — Scans source; counts files, date range, any errors
-4. **Confirmation** — Shows what will be imported; requires approval
-5. **Import execution** — Copies files, adds frontmatter, creates metadata.json
-6. **Summary** — Reports: files imported, date range, any skipped/errors
-
-### Import Logic
-
-#### Daily Entries (YYYY-MM-DD.md)
-
-**Source pattern:** `Personal/Journal/YYYY-MM-DD.md`
-
-**Process:**
-1. Parse filename for date (e.g., `2026-03-06.md`)
-2. Read raw content
-3. Create `reflection/entries/2026-03-06.md` with frontmatter:
-   ```yaml
-   date: 2026-03-06
-   imported_from: markdown
-   length_words: [count]
-   ```
-4. Preserve all original content exactly
-
-#### Craft Reflections (topic-based names)
-
-**Source pattern:** `Personal/Archive/Craft/My Space/Journal/*.md`
-
-**Process:**
-1. No date in filename → use file creation time from filesystem
-2. Round creation time to date (e.g., file created Mar 4, 2024 14:33 → 2024-03-04)
-3. If multiple Craft files on same date, append as separate timestamp sections
-4. Create entry with frontmatter:
-   ```yaml
-   date: 2024-03-04
-   imported_from: craft_archive
-   original_filename: [Enabling dreams of others.md]
-   length_words: [count]
-   ```
-
-### Acceptance Criteria
-
-- [x] Skill directory structure created
-- [ ] SKILL.md defines behavior and data formats
-- [ ] Import script scans source directory
-- [ ] Parses YYYY-MM-DD filenames correctly
-- [ ] Infers dates from Craft file metadata
-- [ ] Creates frontmatter with date, source, word count
-- [ ] Preserves original content without modification
-- [ ] Generates import summary report
-- [ ] Handles edge cases (missing dates, encoding, empty files)
-- [ ] Onboarding flow walks user through import
-- [ ] metadata.json records import history
-
-## Implementation Notes
-
-### Tech Stack
-- Shell scripts for file scanning and processing
-- Markdown frontmatter (YAML) for entry metadata
-- Filesystem structure for organization (no database for Phase 1)
-- `wc -w` for word count, `stat` for file timestamps
-
-### Design Decisions
-- **No database yet** — Phase 1 is files on disk. Mirrors your workflow.
-- **One entry per day** — Simplifies navigation, matches your existing structure
-- **Immutability at filesystem level** — entries/ is the source of truth; lenses are separate
-- **Signals file (for Kaizen)** — jsonl format, contains only metadata (no content)
-
-## Future Phases
-
-**Phase 2:** Parse Tasks, Projects, and Unsorted; determine proper structure for each
-
-**Phase 3:** Lens generation (automated + manual)
-
-**Phase 4:** Query interface ("show me all Jungian entries in 2025 about relationships")
-
-**Phase 5:** Integration with Kaizen skill (pattern detection, growth tracking)
-
-## Related Skills
-
-- **kaizen-skill** — Consumes signals from reflection/signals/ to identify patterns and growth
-- **todo-skill** — Could import from reflection/ with metadata tagging
-
-## Files in This Skill
-
-- `SKILL.md` — This file (user-facing skill definition)
-- `dev/DEVELOPMENT.md` — Implementation guide for developers
-- `dev/import-script.sh` — File scanning and import logic
-- `entries/` — User's journal entries (created on first import)
-- `annotations/` — Interpretive lenses (created as user adds lenses)
-- `signals/` — Metadata for Kaizen consumption
+154 entries imported from Obsidian (Oct 2025 – Mar 2026) use an older template format with `# Section` headers (Gratitudes, Meditations, etc.). These remain as-is. New auto-captured entries use the timestamped format above.
