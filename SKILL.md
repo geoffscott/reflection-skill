@@ -1,6 +1,16 @@
 ---
 name: reflection
-description: Capture and reflect on your stream of consciousness with interpretive lenses. Use when the user shares personal reflections, insights, emotional processing, dreams, meditations, gratitude, or relationship observations. Also triggers on requests to apply a lens or review journal entries.
+description: >
+  Journal and reflect on stream of consciousness through interpretive lenses.
+  Use when the user says things like "capture this," "journal this," "I want to
+  reflect on," "give me a Buddhist reading," "apply the Gnosticism lens," "what
+  did I journal this week," "review my entries," "what patterns do you see,"
+  "reflect on February," or any reference to journaling, lenses, reflections,
+  reviewing past entries, or applying belief system frameworks to life experience.
+  Also trigger when the user explicitly shares something contemplative, spiritual,
+  or emotionally significant and asks to save, capture, or remember it. Trigger
+  phrases include: "lens," "reflection," "journal," "entry," "annotate,"
+  "Buddhism," "Gnosticism," "Stoicism," "what did I write," "capture that."
 ---
 
 # Reflection Skill
