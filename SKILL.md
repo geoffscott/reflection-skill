@@ -134,3 +134,125 @@ skill repo (references/)         # Lens definitions (in git)
 ## Historical Entries
 
 154 entries imported from Obsidian (Oct 2025 – Mar 2026) use an older template format with `# Section` headers (Gratitudes, Meditations, etc.). These remain as-is. New auto-captured entries use the timestamped format above.
+
+## Setup & Onboarding
+
+### First Run Detection
+
+Before executing any skill operation, check:
+
+```
+Does ~/.openclaw/reflection/initialized exist?
+```
+
+**If NO → run onboarding (below)**
+**If YES → proceed to normal operation**
+
+### Onboarding Flow
+
+When triggered for the first time:
+
+#### Step 1: Create Directory Structure
+
+```bash
+mkdir -p ~/.openclaw/reflection/entries
+mkdir -p ~/.openclaw/reflection/annotations
+```
+
+#### Step 2: Onboarding Conversation
+
+Walk the user through setup. Keep it conversational, not interrogative.
+
+**Ask (in natural order, not as a survey):**
+
+1. **Lens preferences:** "Which belief systems or traditions resonate with you? I have Buddhism and Gnosticism ready, with many more available. You can always add more later."
+   - Record responses in config.json `declared_lenses`
+
+2. **Capture preferences:** "I can silently capture journal-worthy moments from our conversations — reflections, insights, dreams, gratitude. Want me to do that?"
+   - If yes: will install auto-capture in AGENTS.md (Step 4)
+
+3. **Reflection cadence:** "How often do you want reflection prompts? I'd suggest daily (quick check) and weekly (deeper lens reflection)."
+   - Record in config.json `heartbeat_schedule`
+
+4. **Timezone:** "What timezone are you in? This affects when I prompt you."
+   - Record in config.json `timezone`
+
+#### Step 3: Write Configuration
+
+Create `~/.openclaw/reflection/config.json`:
+
+```json
+{
+  "declared_lenses": ["buddhism", "gnosticism"],
+  "timezone": "America/New_York",
+  "auto_capture": true,
+  "heartbeat_schedule": {
+    "daily_check": "09:00",
+    "weekly_reflection": "sunday 08:00"
+  },
+  "entities_path": "~/.openclaw/entities.json",
+  "initialized_at": "2026-03-13T12:00:00Z"
+}
+```
+
+#### Step 4: Install Auto-Capture (if user opted in)
+
+Append to AGENTS.md:
+
+```markdown
+## Reflection Skill: Auto-Capture
+
+On every inbound user message, silently evaluate whether it's journal-worthy:
+- Emotional processing, self-reflection, insights, pattern recognition
+- Relationship reflections, gratitude, spiritual/contemplative content
+- Life decisions, values-level thinking, dreams, meditations
+- Creative ideas with personal meaning
+
+If journal-worthy: clean voice-to-text artifacts, append to
+~/.openclaw/reflection/entries/YYYY-MM-DD.md with ## HH:MM timestamp.
+Do not respond about the capture. Continue normal processing.
+
+Skip: task management, debugging, scheduling, logistics, commands.
+```
+
+This ensures auto-capture is always in the agent's context, not gated behind skill triggering.
+
+#### Step 5: Register Shared Entities
+
+Check if `~/.openclaw/entities.json` exists. If so, note the path in config.json so the lens application engine can reference known people, organizations, and projects when generating annotations.
+
+#### Step 6: Set Up Heartbeat
+
+Append to the workspace HEARTBEAT.md:
+
+```markdown
+## Reflection Skill
+
+### Daily Journal Check (09:00 [timezone])
+- Check if ~/.openclaw/reflection/entries/YYYY-MM-DD.md exists for today
+- If empty: "Nothing captured today. Anything on your mind worth noting?"
+- If has entries: silent (no prompt needed)
+
+### Weekly Reflection (Sunday 08:00 [timezone])
+- Load this week's entries
+- Offer: "Want a lens reflection on this week? I can apply [declared_lenses]."
+- If accepted: run lens application engine, present summary
+```
+
+#### Step 7: Mark Initialized
+
+```bash
+echo "initialized: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > ~/.openclaw/reflection/initialized
+```
+
+#### Step 8: Confirm
+
+"All set. I'll silently capture journal-worthy moments, check in daily at [time], and offer a deeper reflection every Sunday. You can ask for a lens reading anytime — just say something like 'give me a Buddhist reading of this week.'"
+
+### Uninstall
+
+To remove the skill's hooks:
+1. Remove the "Reflection Skill: Auto-Capture" section from AGENTS.md
+2. Remove the "Reflection Skill" section from HEARTBEAT.md
+3. Delete ~/.openclaw/reflection/initialized
+4. Optionally delete ~/.openclaw/reflection/ (entries and annotations)
