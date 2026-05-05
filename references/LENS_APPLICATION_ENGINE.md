@@ -7,22 +7,24 @@ The Lens Application Engine reads a belief system lens and applies its inference
 **Core principle:** Entries are immutable. Lenses are separate interpretive layers.
 
 ## Input
-- **Lens definition** — markdown file from `references/lenses/[name].md`
-- **Entry set** — journal entries from `~/.openclaw/reflection/entries/YYYY-MM-DD.md`
+- **Lens definition** — markdown file from `references/lenses/[name].md` in the skill repo
+- **Entry set** — journal entries loaded via the storage adapter's `read entry for date` for each date in the requested range
 - **Date range** — time period to analyze
 
 ## Output
-- **Annotation** — markdown file at `~/.openclaw/reflection/annotations/[lens-name]/YYYY-MM-DD.md`
-- **Reference format:** `[→ entries/YYYY-MM-DD.md#HH:MM]`
+- **Annotation** — written via the storage adapter's `write annotation for (date-range, lens)` operation
+- **Reference format:** `[→ entry YYYY-MM-DD#HH:MM]`
+
+The engine never names a path or URL directly. All persistence flows through storage operations defined in `SKILL.md` and implemented by whichever storage adapter is active.
 
 ## 6-Step Operational Process
 
 1. **Parse lens definition** → extract framework, inference rules, epistemological limits
-2. **Load entries** → read each file in date range, index by timestamp
+2. **Load entries** → for each date in the range, call `read entry for date` and index by timestamp. Always read fresh; never synthesize from memory.
 3. **Apply rules** → for each entry, test against each inference rule, estimate confidence
 4. **Identify observations** → collect rule matches, synthesize across entries, find meta-patterns
 5. **Organize findings** → group into 2-3 thematic sections with narrative
-6. **Write annotation** → markdown with sections, entry refs, confidence metadata, footer
+6. **Write annotation** → markdown with sections, entry refs, confidence metadata, footer; persist via `write annotation for (date-range, lens)`
 
 ## Confidence Levels
 - **High** — 5+ rules matched with clear textual evidence
@@ -37,7 +39,7 @@ The Lens Application Engine reads a belief system lens and applies its inference
 [Opening paragraph: 1-2 sentences on what this lens reveals about the time period.]
 
 ## [Theme 1]
-[Narrative with entry references as [→ entries/YYYY-MM-DD.md#HH:MM]]
+[Narrative with entry references as [→ entry YYYY-MM-DD#HH:MM]]
 
 ## [Theme 2]
 [Narrative with entry references]
@@ -59,7 +61,7 @@ The Lens Application Engine reads a belief system lens and applies its inference
 ## Quality Checklist
 
 - [ ] Framework accurately represented (not misinterpreted)
-- [ ] Entry references use correct format `[→ entries/YYYY-MM-DD.md#HH:MM]`
+- [ ] Entry references use correct format `[→ entry YYYY-MM-DD#HH:MM]`
 - [ ] Every rule match grounded in specific entry text
 - [ ] Notes what lens sees well AND what it misses
 - [ ] Jargon translated or explained

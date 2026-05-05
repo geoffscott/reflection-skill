@@ -1,184 +1,90 @@
-# reflection-skill Development Guide
+# Development Guide
 
-This file is for developers building and iterating on the skill. It's separate from the user-facing SKILL.md.
+This file is for developers building and iterating on the skill. The user-facing definition lives in `SKILL.md`; the conceptual core under `references/`; runtime adapters under `adapters/`.
 
-## Implementation Checklist: Import Feature
+## Architecture in One Page
 
-### Phase 1a: File Scanning & Parsing
+The skill is a markdown-based agent skill. There is no runtime code in the core — the model reads `SKILL.md`, follows the instructions there, and uses adapter-defined operations to talk to the surrounding runtime.
 
-- [ ] Write `scan-source.sh` — scan source directory, list all markdown files
-  - Input: source directory path
-  - Output: list of files with metadata (path, filename, size, creation date)
-  - Handle: spaces in filenames, nested directories, encoding
+Four adapter axes:
 
-- [ ] Write `parse-dates.sh` — extract dates from filenames and filesystem
-  - Input: file path
-  - Output: ISO date (YYYY-MM-DD)
-  - Logic:
-    - If filename matches `YYYY-MM-DD.md` → use that date
-    - Else use file creation time → convert to YYYY-MM-DD
-    - Handle: invalid dates, missing file metadata
+1. **Storage** — where entries, annotations, config, metadata live
+2. **Triggering** — how the skill decides to engage on a given message
+3. **Scheduling** — whether and how the skill runs without user prompting
+4. **Cross-skill state** — how shared resources (e.g. an entities registry) are accessed
 
-- [ ] Validation script — test date parsing on sample files
-  - Test cases: valid YYYY-MM-DD names, Craft archive filenames, edge cases
+Adapters compose freely. The only constraint: triggering adapters that depend on a runtime hook (`every-message-hook`) cannot be selected in runtimes that don't expose that hook. See [`adapters/README.md`](adapters/README.md) for the full capability matrix.
 
-### Phase 1b: Import Execution
+## Where to Edit What
 
-- [ ] Write `import-entries.sh` — main import logic
-  - Input: source directory, target directory (reflection/entries/)
-  - Process:
-    1. Scan source for .md files
-    2. For each file:
-       a. Parse date (using parse-dates.sh)
-       b. Read content
-       c. Count words (`wc -w`)
-       d. Determine source type (daily vs craft)
-       e. Create frontmatter
-       f. Write to reflection/entries/YYYY-MM-DD.md
-    3. Handle conflicts (multiple files → same date, merge as timestamps)
-    4. Log errors (unparseable dates, write failures, etc.)
-  - Output: import summary (files processed, date range, errors)
+| If you're changing... | Edit... |
+|---|---|
+| What the skill captures (taxonomy, voice-to-text rules) | `SKILL.md` |
+| Entry format conventions | `SKILL.md` |
+| How a lens interprets entries | `references/LENS_APPLICATION_ENGINE.md` |
+| A specific lens's framework or inference rules | `references/lenses/[name].md` |
+| The lens taxonomy or universal questions | `references/TAXONOMY.md`, `references/LENSES.md` |
+| A storage backend's behavior or setup | `adapters/storage/[name].md` |
+| How the skill engages on messages in a runtime | `adapters/triggering/[name].md` |
+| Scheduled behaviors | `adapters/scheduling/[name].md` |
+| Shared cross-skill state | `adapters/cross-skill-state/[name].md` |
+| The capability matrix or example configurations | `adapters/README.md` |
 
-- [ ] Write `create-metadata.sh` — generate reflection/metadata.json
-  - Tracks: import date/time, source directory, files imported, date range
-  - Format: JSON
-  - Used for future imports (detection of duplicates, incremental updates)
+## Adding a New Adapter
 
-### Phase 1c: Onboarding & Validation
+Adapters are markdown files describing behavior — not implementations. To add a new adapter:
 
-- [ ] Write `validate-import.sh` — pre-import check
-  - Input: source directory path
-  - Output: validation report
-    - Number of files found
-    - Date range covered
-    - Any unparseable files
-    - Estimated word count
-    - Approval prompt (yes/no)
+1. Create `adapters/[axis]/[name].md` with these sections:
+   - **Runtime Requirements** — what the runtime must provide
+   - **Configuration** — what the user/deployment must set
+   - **Operations** — how each core operation is implemented for this backend
+   - **Setup Steps** — first-run flow
+   - **Failure Modes** — concrete failure cases and how to handle them
+   - **Composition Notes** — which other adapters pair well, which constraints apply
+2. Update `adapters/README.md`:
+   - Add the adapter to the axis list
+   - Add a row to the capability matrix
+   - Update the validity-by-runtime table if applicable
+3. Verify by walking through all four scenarios (capture, daily, weekly, longitudinal) end-to-end with the new adapter selected.
 
-- [ ] Write `onboarding.sh` — first-run flow
-  - Detect: is reflection/entries/ empty?
-  - If yes:
-    1. Welcome message + brief explanation
-    2. Prompt for source directory path
-    3. Run validation
-    4. Show summary, ask for confirmation
-    5. Run import if approved
-  - If no:
-    - Skip onboarding, offer manual import command
+Keep adapters concrete. Each one targets a real backend with materially different operations — don't add an adapter for a hypothetical case.
 
-- [ ] Integration with OpenClaw — how does onboarding trigger?
-  - Option A: Skill detects first run, prompts in Discord
-  - Option B: Manual invocation (`/reflection-import /path/to/vault`)
-  - Option C: Both (auto-detect, manual override)
+## Adding a New Lens
 
-### Phase 1d: Testing
+See [`CONTRIBUTING.md`](CONTRIBUTING.md). Lens contributions follow a research → draft → review → merge process. The lens file template is documented there and in `references/LENSES.md`.
 
-- [ ] Unit tests for date parsing (valid/invalid cases)
-- [ ] Integration test with sample markdown files
-  - Create 5-10 test files (daily + Craft format)
-  - Run full import pipeline
-  - Verify output structure and metadata
-- [ ] Edge case tests
-  - File with no content
-  - File with special characters in name
-  - Multiple entries on same date
-  - Missing file metadata
-- [ ] Performance test
-  - Time import of 179 files
-  - Verify no data loss or corruption
+## Testing the Skill
 
-## Design Decisions (Implementation Details)
+The skill is markdown, so "testing" means walking through scenarios mentally with the configured adapters and confirming the instructions produce a coherent sequence.
 
-### Why Shell Scripts vs Python/Node?
-- OpenClaw default is shell for file operations
-- Keeps skill lightweight and portable
-- Easier to debug in production
-- Can call from Discord bot directly
+Four scenarios to walk through for any deployment:
 
-### Date Inference from File Metadata
-- Use `stat` command to get file creation time
-- Most reliable on macOS (born time), reasonable on Linux (change time)
-- Format as ISO date
-- Log any ambiguous cases
+1. **Capture moment.** A user message comes in. Does the active triggering adapter route it to the skill? If yes, does the capture taxonomy decide correctly? Does the storage adapter handle the append?
+2. **Daily reflection.** Either via heartbeat or user-initiated. Does the storage adapter surface today's entry? Does the response handle the empty-day and has-entries cases?
+3. **Weekly lens reflection.** Lens loads, entries enumerate and read fresh, lens application produces an annotation, storage writes it. Does the user get the same result they'd get from a fired heartbeat?
+4. **Longitudinal pattern query.** Read entries across a longer range, identify recurring themes (with or without cross-skill entity resolution), present findings.
 
-### Frontmatter Format
-- YAML format (standard for markdown)
-- Keep minimal: date, source, length, original_filename (for Craft)
-- Future: add tags, mood, energy level (user can add manually later)
+If any step requires the model to do something not described in the adapters or the core, that's a gap to fix.
 
-### Conflict Resolution: Multiple Files → Same Date
-```
-If User/Journal/2026-03-06.md already exists, and we want to import
-Personal/Archive/Craft/Energy Flow.md (dated 2026-03-06):
+For trigger-routing tests under `description-based`, see `test/trigger-fixtures.md`.
 
-Create: reflection/entries/2026-03-06.md with both:
+## Migration & Imports
 
----
-date: 2026-03-06
-imported_from: [mixed]
-sources:
-  - markdown
-  - craft_archive
----
+Each storage adapter handles imports differently. When importing an existing journal:
 
-## [timestamp from markdown file]
-[content]
+- For `local-fs`: write a one-time shell or Python script that reads the source files, parses dates, and calls the adapter's `write entry for date` for each. Live outside the skill repo or in a per-adapter migration helper.
+- For `google-drive`: use a script that reads source files locally and uploads via the Drive API or connector tools.
+- For `github`: a one-time series of commits to the configured branch.
 
-## [timestamp from craft file]
-[content from craft]
-```
+Don't try to write a generic import script that handles all backends. The shape of source data and the failure modes differ enough that adapter-specific helpers are clearer.
 
-### Signals File Format
-Not implemented in Phase 1, but plan ahead:
-```jsonl
-{"date": "2026-03-06", "type": "entry_created", "source": "discord", "length_words": 342}
-{"date": "2026-03-05", "type": "entry_imported", "batch_id": "initial_import", "count": 45}
-```
+For historical context: the original OpenClaw deployment imported 154 entries from an Obsidian vault using shell scripts. Those entries use an older template format (`# Section` headers like Gratitudes, Meditations) and remain as-is; new auto-captured entries use the timestamped format documented in `SKILL.md`.
 
-## Building the Import Script
+## Releasing
 
-### File: `dev/import-script.sh`
+The repo uses two long-running branches:
 
-The main orchestrator script. Should:
-1. Source helper scripts (parse-dates.sh, validate-import.sh, etc.)
-2. Accept source directory as argument or prompt for it
-3. Run validation
-4. Ask for confirmation
-5. Execute import
-6. Report summary
+- `main` — Stable. Always deployable.
+- `develop` — Active development.
 
-Example invocation:
-```bash
-./dev/import-script.sh /path/to/vault
-# or
-./dev/import-script.sh  # prompts for path
-```
-
-## Testing Against Your Actual Vault
-
-Before running on full vault, test with:
-1. Sample of 5-10 files (daily + Craft)
-2. Verify structure: entries/, metadata.json created
-3. Inspect one entry file: frontmatter correct, content preserved
-4. Check word count accuracy
-5. Review import summary report
-
-Then run full import on your 179 files.
-
-## Future Considerations
-
-### Incremental Import
-If you add new daily entries, script should detect them and not re-import existing ones. Use metadata.json to track what's been imported.
-
-### Source Directory Changes
-If source directory structure changes (e.g., you reorganize vault), re-import should be possible (skip duplicates by date).
-
-### Annotation Overlays (Lenses)
-Plan: User can create `reflection/annotations/jungian/2026-03-06.md` manually, or skill can scaffold templates. Keep lenses separate from entries.
-
-### Kaizen Integration
-Plan: Skill writes to `reflection/signals/` with pattern metadata (no content). Kaizen skill reads those signals to identify growth, recurring themes, etc.
-
----
-
-**Status:** Ready to build. Start with Phase 1a (file scanning).
+Feature branches off `develop`, merged via PR. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for details.
