@@ -17,11 +17,22 @@ description: >
 
 Capture stream of consciousness throughout the day. Reflect on it through interpretive lenses without modifying the raw entries.
 
-## How It Works
+## Architecture
 
-### Auto-Capture
+The skill has a runtime-agnostic conceptual core (this file plus everything under `references/`) and a set of pluggable adapters (everything under `adapters/`). The core describes *what* the skill does. Adapters describe *how* it talks to the surrounding runtime.
 
-On every inbound user message, evaluate whether it's journal-worthy:
+Adapters compose along four axes:
+
+- **Storage** — where entries, annotations, config, and metadata persist
+- **Triggering** — how the skill decides to engage on a given message
+- **Scheduling** — whether and how the skill runs without user prompting
+- **Cross-skill state** — how shared resources (e.g. a global entities registry) are accessed
+
+Every operation below is described in adapter-neutral terms. The active deployment selects one adapter per axis. See `adapters/README.md` for the capability matrix and concrete deployment examples.
+
+## Capture Taxonomy
+
+When the triggering adapter routes a message to this skill, evaluate whether the message is journal-worthy.
 
 **Capture if the message contains:**
 - Emotional processing or self-reflection
@@ -39,17 +50,26 @@ On every inbound user message, evaluate whether it's journal-worthy:
 - Routine operational updates
 - Direct commands to the agent
 
-**When capturing:**
-1. Clean voice-to-text artifacts (spelling, punctuation, obvious mishearings)
-2. Do not synthesize, summarize, or significantly alter the content
-3. Append to the daily entry file with a timestamp header
-4. Do not respond about the capture — continue normal processing silently
+### Capture Defaults by Triggering Adapter
 
-### Entry Format
+- **`every-message-hook`** or **`project-default`** — assume capture is the default. Only stop and ask the user when the content is ambiguous or when they're clearly doing something else (asking for a lens reflection, reviewing past entries, asking a meta question about the skill).
+- **`description-based`** without project scoping — be more conservative. Only capture when the user explicitly invokes the skill or shares something unmistakably journal-worthy.
 
-Runtime data location: `~/.openclaw/reflection/`
+## Voice-to-Text Cleaning
 
-Each day gets one file: `entries/YYYY-MM-DD.md`
+When capturing, clean the raw message minimally:
+
+1. Fix obvious transcription artifacts (spelling, punctuation, dropped words)
+2. Repair words that were clearly misheard
+3. Preserve sentence structure, phrasing, and idioms — even when imperfect
+4. Do **not** synthesize, summarize, paraphrase, or significantly alter meaning
+5. Do **not** add interpretation, framing, or context the user didn't say
+
+Cleaning is a transcription pass, not an editorial pass. The voice on the page should be the user's voice.
+
+## Entry Format
+
+Each calendar day has one entry file. The storage adapter exposes it as the entry for date `YYYY-MM-DD`.
 
 ```markdown
 ---
@@ -75,111 +95,85 @@ the powerlessness.
 ```
 
 **Rules:**
-- One file per calendar day
+- One entry file per calendar day
 - `## HH:MM` timestamp headers in chronological order
-- Frontmatter on first capture of the day; subsequent captures append
+- Frontmatter (`date: YYYY-MM-DD`) on the first capture of the day; subsequent captures append
 - Entries are immutable once written — never modify past entries
-- Use UTC timestamps
+- Use the user's local timezone for `HH:MM` headers (configured during onboarding); the date in the frontmatter is the user's local date
 
-### Writing an Entry
+### Writing a Captured Moment
 
-To append a captured moment to today's file:
+When a capture is triggered:
 
-1. Check if `entries/YYYY-MM-DD.md` exists
-2. If not, create it with frontmatter: `date: YYYY-MM-DD`
-3. Append `## HH:MM` header + cleaned content
+1. Ask the storage adapter whether an entry exists for today's date
+2. If not, create it with frontmatter `date: YYYY-MM-DD`
+3. Append a `## HH:MM` header followed by the cleaned content
 4. Ensure a blank line before and after the new section
+5. Do not respond about the capture — continue normal processing silently
 
-### Reflection Mode
+The `read entry for date` and `append to entry for date` operations are provided by the storage adapter. The skill never names a path, URL, or file ID directly.
 
-When the user requests a lens reflection (e.g., "give me a Buddhist reading of this week"):
+## Lens Application
 
-1. Load the requested lens from `references/lenses/[name].md` in the skill repo
-2. Load entries for the requested time period
-3. Apply the lens using the process in `references/LENS_APPLICATION_ENGINE.md`
-4. Write the annotation to `annotations/[lens-name]/YYYY-MM-DD.md`
-5. Present a summary to the user
-6. Offer the full annotation if they want it
+When the user requests a lens reflection (e.g. "give me a Buddhist reading of this week"):
 
-### Available Lenses
+1. Load the requested lens definition from `references/lenses/[name].md` in the skill repo
+2. Use the storage adapter's `list entries in date range` to enumerate entries for the requested period
+3. For each entry in range, use `read entry for date` to load it fresh
+4. Apply the lens following `references/LENS_APPLICATION_ENGINE.md`
+5. Use the storage adapter's `write annotation for (date-range, lens)` to persist the result
+6. Present a summary; offer the full annotation if the user wants it
+
+Lenses interpret what's written in the entry files, not what the model remembers. **Read entries fresh from storage every time.** Do not synthesize from conversational memory or context impressions. The immutability of entries and the freshness of reads together preserve the separation between source and interpretation.
+
+## Reflection Workflows
+
+These are the workflows the skill supports. Each has a scheduled form (when a `heartbeat` scheduler is configured) and a user-initiated form (always available, regardless of scheduler).
+
+### Daily Check
+
+- **Scheduled (heartbeat):** at the configured daily time, ask the storage adapter whether today's entry exists. If empty, prompt the user: "Nothing captured today. Anything on your mind worth noting?" If it has entries, stay silent.
+- **User-initiated:** the user asks "what did I journal today?" or similar. Read today's entry and present it.
+
+### Weekly Lens Reflection
+
+- **Scheduled (heartbeat):** at the configured weekly time, offer a lens reflection on the past week's entries using the user's declared lenses.
+- **User-initiated:** the user asks "give me a Buddhist reading of this week" or "apply Gnosticism to last week." Run the lens application on the requested date range.
+
+### Longitudinal Pattern Recognition
+
+- **User-initiated only.** The user asks "what patterns do you see across the last three months?" or "how has my relationship with X evolved?" Read the relevant date range, identify recurring themes across entries (and any existing annotations), present findings.
+
+Every scheduled behavior has a user-initiated equivalent. A user who comes to the skill on a Sunday morning and asks for a weekly reflection should get the same result a fired heartbeat would have produced. Scheduling is an enhancement, not a requirement.
+
+## Available Lenses
 
 Lens definitions live in the skill repo under `references/lenses/`:
 
 - **Buddhism** — Craving, impermanence, presence, reactivity patterns
 - **Gnosticism** — Sophia/archontic choices, false authority, awakening moments
 
-See `references/TAXONOMY.md` for the full taxonomy of available lens categories.
-See `references/LENSES.md` for how lenses are structured and how to contribute new ones.
+See `references/TAXONOMY.md` for the full taxonomy of available lens categories and `references/LENSES.md` for how lenses are structured and how to contribute new ones.
 
-## Data Layout
+## Cross-Skill State
 
-```
-~/.openclaw/reflection/          # Runtime data (never in git)
-├── entries/                     # Immutable journal entries
-│   └── YYYY-MM-DD.md
-├── annotations/                 # Lens interpretation overlays
-│   └── [lens-name]/
-│       └── YYYY-MM-DD.md
-└── metadata.json                # Usage tracking
+When applying lenses or generating annotations, the skill may benefit from shared knowledge — e.g. a registry of known people, organizations, and projects so that "Kerry" in one entry resolves to the same entity referenced elsewhere. The cross-skill-state adapter exposes this. When the adapter is `none`, lens application proceeds without it; when the adapter is `shared-file` (or any future adapter), the lens application engine consults it during annotation.
 
-skill repo (references/)         # Lens definitions (in git)
-├── lenses/
-│   ├── buddhism.md
-│   └── gnosticism.md
-├── LENSES.md
-├── TAXONOMY.md
-└── LENS_APPLICATION_ENGINE.md
-```
+## Setup
 
-## Historical Entries
+First-run setup is driven by the active storage adapter and triggering adapter:
 
-154 entries imported from Obsidian (Oct 2025 – Mar 2026) use an older template format with `# Section` headers (Gratitudes, Meditations, etc.). These remain as-is. New auto-captured entries use the timestamped format above.
+1. **Check for existing configuration** — ask the storage adapter whether a config record exists.
+2. **If yes:** load it. Proceed to normal operation.
+3. **If no:** run the onboarding conversation:
+   - Which belief systems or traditions resonate with you? (Records `declared_lenses`.)
+   - Want me to silently capture journal-worthy moments from our conversations? (Records `auto_capture`.)
+   - How often do you want reflection prompts? (Records `heartbeat_schedule` if a scheduler is configured.)
+   - What timezone are you in? (Records `timezone`.)
+4. **Persist config** via the storage adapter's `write config` operation.
+5. **Run any adapter-specific setup steps** documented in the active adapters' setup sections (e.g. installing a hook, registering a heartbeat, granting Drive access).
 
-## Setup & Onboarding
-
-### First Run Detection
-
-Before executing any skill operation, check:
-
-```
-Does ~/.openclaw/reflection/initialized exist?
-```
-
-**If NO → run onboarding (below)**
-**If YES → proceed to normal operation**
-
-### Onboarding Flow
-
-When triggered for the first time:
-
-#### Step 1: Create Directory Structure
-
-```bash
-mkdir -p ~/.openclaw/reflection/entries
-mkdir -p ~/.openclaw/reflection/annotations
-```
-
-#### Step 2: Onboarding Conversation
-
-Walk the user through setup. Keep it conversational, not interrogative.
-
-**Ask (in natural order, not as a survey):**
-
-1. **Lens preferences:** "Which belief systems or traditions resonate with you? I have Buddhism and Gnosticism ready, with many more available. You can always add more later."
-   - Record responses in config.json `declared_lenses`
-
-2. **Capture preferences:** "I can silently capture journal-worthy moments from our conversations — reflections, insights, dreams, gratitude. Want me to do that?"
-   - If yes: will install auto-capture in AGENTS.md (Step 4)
-
-3. **Reflection cadence:** "How often do you want reflection prompts? I'd suggest daily (quick check) and weekly (deeper lens reflection)."
-   - Record in config.json `heartbeat_schedule`
-
-4. **Timezone:** "What timezone are you in? This affects when I prompt you."
-   - Record in config.json `timezone`
-
-#### Step 3: Write Configuration
-
-Create `~/.openclaw/reflection/config.json`:
+Configuration shape (storage adapter decides where this lives):
 
 ```json
 {
@@ -190,69 +184,30 @@ Create `~/.openclaw/reflection/config.json`:
     "daily_check": "09:00",
     "weekly_reflection": "sunday 08:00"
   },
-  "entities_path": "~/.openclaw/entities.json",
   "initialized_at": "2026-03-13T12:00:00Z"
 }
 ```
 
-#### Step 4: Install Auto-Capture (if user opted in)
+The `heartbeat_schedule` field is only meaningful when a `heartbeat` scheduling adapter is active; it is ignored under `user-initiated`.
 
-Append to AGENTS.md:
+## Storage Operations Used by the Core
 
-```markdown
-## Reflection Skill: Auto-Capture
+The skill body refers to the following operations. Every storage adapter must implement them; see `adapters/storage/` for backend-specific details.
 
-On every inbound user message, silently evaluate whether it's journal-worthy:
-- Emotional processing, self-reflection, insights, pattern recognition
-- Relationship reflections, gratitude, spiritual/contemplative content
-- Life decisions, values-level thinking, dreams, meditations
-- Creative ideas with personal meaning
+- `read entry for date(date) → entry contents or null`
+- `append to entry for date(date, content)` — creates the entry with frontmatter on first call of the day
+- `write entry for date(date, content)` — used only for migrations and historical imports, never for normal capture
+- `list entries in date range(start, end) → list of dates`
+- `read annotation for (date-range, lens) → annotation or null`
+- `write annotation for (date-range, lens, content)`
+- `read config() → config or null`
+- `write config(config)`
+- `read metadata() → metadata or null`
+- `write metadata(metadata)`
 
-If journal-worthy: clean voice-to-text artifacts, append to
-~/.openclaw/reflection/entries/YYYY-MM-DD.md with ## HH:MM timestamp.
-Do not respond about the capture. Continue normal processing.
+## What This Skill Does Not Do
 
-Skip: task management, debugging, scheduling, logistics, commands.
-```
-
-This ensures auto-capture is always in the agent's context, not gated behind skill triggering.
-
-#### Step 5: Register Shared Entities
-
-Check if `~/.openclaw/entities.json` exists. If so, note the path in config.json so the lens application engine can reference known people, organizations, and projects when generating annotations.
-
-#### Step 6: Set Up Heartbeat
-
-Append to the workspace HEARTBEAT.md:
-
-```markdown
-## Reflection Skill
-
-### Daily Journal Check (09:00 [timezone])
-- Check if ~/.openclaw/reflection/entries/YYYY-MM-DD.md exists for today
-- If empty: "Nothing captured today. Anything on your mind worth noting?"
-- If has entries: silent (no prompt needed)
-
-### Weekly Reflection (Sunday 08:00 [timezone])
-- Load this week's entries
-- Offer: "Want a lens reflection on this week? I can apply [declared_lenses]."
-- If accepted: run lens application engine, present summary
-```
-
-#### Step 7: Mark Initialized
-
-```bash
-echo "initialized: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > ~/.openclaw/reflection/initialized
-```
-
-#### Step 8: Confirm
-
-"All set. I'll silently capture journal-worthy moments, check in daily at [time], and offer a deeper reflection every Sunday. You can ask for a lens reading anytime — just say something like 'give me a Buddhist reading of this week.'"
-
-### Uninstall
-
-To remove the skill's hooks:
-1. Remove the "Reflection Skill: Auto-Capture" section from AGENTS.md
-2. Remove the "Reflection Skill" section from HEARTBEAT.md
-3. Delete ~/.openclaw/reflection/initialized
-4. Optionally delete ~/.openclaw/reflection/ (entries and annotations)
+- It does not modify raw entries after they are written.
+- It does not invent or infer journal content the user didn't say.
+- It does not apply lens interpretations from memory; lenses always read from storage.
+- It does not name runtime-specific paths, hooks, or schedulers in its core. Those belong to adapters.
