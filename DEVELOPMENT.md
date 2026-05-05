@@ -66,6 +66,8 @@ Four scenarios to walk through for any deployment:
 
 If any step requires the model to do something not described in the adapters or the core, that's a gap to fix.
 
+For automated regression tests of the conceptual core (capture taxonomy, immutability, lens application, reflection workflows), use the harness in `test/`. It loads `SKILL.md` plus everything under `references/` as a cached system prompt, mocks the storage adapter operations as tools, and runs JSON fixtures against the Claude API. See `test/README.md` for setup, fixture format, and what is and isn't covered.
+
 For trigger-routing tests under `description-based`, see `test/trigger-fixtures.md`.
 
 ## Migration & Imports

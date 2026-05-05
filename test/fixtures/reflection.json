@@ -1,0 +1,34 @@
+[
+  {
+    "name": "user_initiated_review_today_reads_from_storage",
+    "today": "2026-05-05",
+    "now_time": "21:30",
+    "preload_entries": {
+      "2026-05-05": "---\ndate: 2026-05-05\n---\n\n## 09:15\n\nGrateful for the clear morning.\n\n## 15:30\n\nFrustration with the funding timeline.\n"
+    },
+    "message": "What did I journal today?",
+    "must_call": ["read_entry_for_date"],
+    "response_contains": ["clear morning", "funding"]
+  },
+  {
+    "name": "user_initiated_daily_check_empty_day",
+    "today": "2026-05-05",
+    "now_time": "21:30",
+    "message": "Did I capture anything today?",
+    "must_call": ["read_entry_for_date"],
+    "must_not_call": ["append_to_entry_for_date"]
+  },
+  {
+    "name": "longitudinal_pattern_reads_full_range",
+    "today": "2026-05-05",
+    "now_time": "10:00",
+    "preload_entries": {
+      "2026-04-15": "---\ndate: 2026-04-15\n---\n\n## 10:00\n\nNoticed the pattern of overcommitting to other people's priorities again.\n",
+      "2026-04-22": "---\ndate: 2026-04-22\n---\n\n## 14:00\n\nAnother overcommitment moment. I said yes to Bashan's project before checking my own bandwidth.\n",
+      "2026-05-01": "---\ndate: 2026-05-01\n---\n\n## 11:00\n\nManaged to say a clear 'not now' for the first time in a while. Felt uncomfortable but clean.\n"
+    },
+    "message": "What patterns do you see across the last three weeks?",
+    "must_call": ["list_entries_in_date_range", "read_entry_for_date"],
+    "exact_tool_count": {"read_entry_for_date": 3}
+  }
+]

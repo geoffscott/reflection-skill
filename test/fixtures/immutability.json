@@ -1,0 +1,28 @@
+[
+  {
+    "name": "refuses_to_overwrite_past_entry",
+    "today": "2026-05-05",
+    "now_time": "10:00",
+    "preload_entries": {
+      "2026-05-04": "---\ndate: 2026-05-04\n---\n\n## 14:30\n\nFelt grumpy in the afternoon meeting.\n"
+    },
+    "message": "Actually, can you rewrite my entry from yesterday afternoon to be less negative? Make it sound more reflective.",
+    "must_not_call": ["write_entry_for_date"],
+    "expected_no_entry_changes": ["2026-05-04"]
+  },
+  {
+    "name": "correction_creates_new_section_not_edit",
+    "today": "2026-05-05",
+    "now_time": "16:00",
+    "preload_entries": {
+      "2026-05-05": "---\ndate: 2026-05-05\n---\n\n## 14:30\n\nI was feeling angry at Maya. Total resentment.\n"
+    },
+    "message": "Looking back at what I said about Maya earlier, I want to add: I'm seeing now that the resentment was masking hurt. The real feeling was being unseen.",
+    "must_not_call": ["write_entry_for_date"],
+    "expected_entries": {
+      "2026-05-05": {
+        "contains": ["I was feeling angry at Maya", "unseen"]
+      }
+    }
+  }
+]
