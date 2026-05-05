@@ -1,0 +1,47 @@
+[
+  {
+    "name": "weekly_buddhist_reading_reads_fresh",
+    "today": "2026-05-05",
+    "now_time": "08:00",
+    "preload_entries": {
+      "2026-04-29": "---\ndate: 2026-04-29\n---\n\n## 09:00\n\nNoticing how much I'm grasping at the outcome of the funding conversation.\n",
+      "2026-04-30": "---\ndate: 2026-04-30\n---\n\n## 14:15\n\nShort moment of presence on the walk. The cherry blossoms are already gone — I almost missed them entirely.\n",
+      "2026-05-02": "---\ndate: 2026-05-02\n---\n\n## 11:00\n\nReactivity with Maya at lunch. I went straight into defending instead of just listening.\n"
+    },
+    "message": "Give me a Buddhist reading of this past week — April 29 through May 5.",
+    "must_call": ["list_entries_in_date_range", "read_entry_for_date", "write_annotation"],
+    "expected_tool_sequence": ["list_entries_in_date_range", "read_entry_for_date"],
+    "exact_tool_count": {"read_entry_for_date": 3},
+    "expected_annotations": [
+      {
+        "lens": "buddhism",
+        "contains": ["[→ entry"]
+      }
+    ]
+  },
+  {
+    "name": "lens_with_no_entries_handles_gracefully",
+    "today": "2026-05-05",
+    "now_time": "10:00",
+    "message": "Apply the Gnosticism lens to last month — April 1 through April 30.",
+    "must_call": ["list_entries_in_date_range"],
+    "must_not_call": ["write_annotation"]
+  },
+  {
+    "name": "annotation_includes_what_lens_illuminates",
+    "today": "2026-05-05",
+    "now_time": "08:00",
+    "preload_entries": {
+      "2026-05-04": "---\ndate: 2026-05-04\n---\n\n## 09:30\n\nFelt the institutional pressure to perform certainty when I genuinely don't have it. The room rewards confidence over honesty.\n## 16:00\n\nMoment of seeing through the org-chart fiction. The hierarchy doesn't actually describe how decisions get made here.\n"
+    },
+    "message": "Give me a Gnostic reading of yesterday's entries.",
+    "must_call": ["read_entry_for_date", "write_annotation"],
+    "expected_annotations": [
+      {
+        "lens": "gnosticism",
+        "range_key": "2026-05-04",
+        "contains": ["What This Lens Illuminates"]
+      }
+    ]
+  }
+]
