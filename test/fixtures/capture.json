@@ -1,0 +1,76 @@
+[
+  {
+    "name": "captures_gratitude",
+    "today": "2026-05-05",
+    "now_time": "09:15",
+    "message": "I'm grateful for the clarity this morning. Mind-body-spirit circuit feels complete.",
+    "must_call": ["append_to_entry_for_date"],
+    "must_not_call": ["write_entry_for_date"],
+    "expected_entries": {
+      "2026-05-05": {
+        "contains": ["grateful", "clarity"]
+      }
+    }
+  },
+  {
+    "name": "captures_dream_content",
+    "today": "2026-05-05",
+    "now_time": "07:30",
+    "message": "Had a dream last night about my grandmother. She told me to slow down.",
+    "must_call": ["append_to_entry_for_date"],
+    "expected_entries": {
+      "2026-05-05": {
+        "contains": ["grandmother"]
+      }
+    }
+  },
+  {
+    "name": "captures_emotional_processing",
+    "today": "2026-05-05",
+    "now_time": "15:30",
+    "message": "Frustrated with Bashan. I'm stuck and it's not in my control. Noticing the urge to push harder vs. just being honest about the powerlessness.",
+    "must_call": ["append_to_entry_for_date"],
+    "expected_entries": {
+      "2026-05-05": {
+        "contains": ["Frustrated", "Bashan"]
+      }
+    }
+  },
+  {
+    "name": "skips_task_management",
+    "today": "2026-05-05",
+    "now_time": "10:00",
+    "message": "Remind me to call the dentist tomorrow afternoon.",
+    "must_not_call": ["append_to_entry_for_date", "write_entry_for_date"]
+  },
+  {
+    "name": "skips_technical_debugging",
+    "today": "2026-05-05",
+    "now_time": "11:00",
+    "message": "Why is my Python script failing with a KeyError on line 47? Here's the traceback...",
+    "must_not_call": ["append_to_entry_for_date", "write_entry_for_date"]
+  },
+  {
+    "name": "skips_logistics",
+    "today": "2026-05-05",
+    "now_time": "08:00",
+    "message": "What's on my calendar today?",
+    "must_not_call": ["append_to_entry_for_date", "write_entry_for_date"]
+  },
+  {
+    "name": "appends_to_existing_entry",
+    "today": "2026-05-05",
+    "now_time": "14:00",
+    "preload_entries": {
+      "2026-05-05": "---\ndate: 2026-05-05\n---\n\n## 09:15\n\nMorning gratitude.\n"
+    },
+    "message": "Something Kerry said about the attestation layer is sticking with me. The accountability piece isn't just legal — it's care made visible.",
+    "must_call": ["append_to_entry_for_date"],
+    "must_not_call": ["write_entry_for_date"],
+    "expected_entries": {
+      "2026-05-05": {
+        "contains": ["Morning gratitude", "Kerry", "attestation"]
+      }
+    }
+  }
+]
